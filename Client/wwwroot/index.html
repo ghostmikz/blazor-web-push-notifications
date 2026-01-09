@@ -1,8 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blazor SignalNotify</title>
+    <base href="/" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #app { width: 100%; max-width: 500px; background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .loading-text { text-align: center; color: #666; font-family: sans-serif; }
+    </style>
+</head>
+
 <body>
     <div id="app">
+        <div class="loading-text">
+            <h4>Loading App...</h4>
+            <div class="spinner-border text-primary" role="status"></div>
         </div>
+    </div>
 
-    <div id="blazor-error-ui">
+    <div id="blazor-error-ui" class="alert alert-danger position-fixed bottom-0 start-50 translate-middle-x mb-3" style="display:none; z-index: 1000;">
         An unhandled error has occurred.
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
@@ -11,27 +30,24 @@
     <script src="_framework/blazor.webassembly.js"></script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
     
-<script>
-    window.blazorPushNotifications = {
-        requestSubscription: async () => {
-            console.log("JS: Checking Service Worker status...");
-            const worker = await navigator.serviceWorker.ready;
-            
-            console.log("JS: Service Worker is ready. Requesting PushManager...");
-            const sub = await worker.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: 'BKMxMXsdv11hILIHp31vatUVgIKu_Pl57-nNnkHii8I1hPcC0dph7UyPeNEqRddCD9cbFpqpMxQLK4GGwRmT-nw'
-            });
+    <script>
+        window.blazorPushNotifications = {
+            requestSubscription: async () => {
+                const worker = await navigator.serviceWorker.ready;
+                const sub = await worker.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: 'BKMxMXsdv11hILIHp31vatUVgIKu_Pl57-nNnkHii8I1hPcC0dph7UyPeNEqRddCD9cbFpqpMxQLK4GGwRmT-nw'
+                });
 
-            console.log("JS: Subscription generated! Mapping keys...");
-            return {
-                endpoint: sub.endpoint,
-                keys: {
-                    p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
-                    auth: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))))
-                }
-            };
-        }
-    };
-</script>
+                return {
+                    endpoint: sub.endpoint,
+                    keys: {
+                        p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
+                        auth: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))))
+                    }
+                };
+            }
+        };
+    </script>
 </body>
+</html>
