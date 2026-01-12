@@ -1,4 +1,4 @@
-# 🚀 Blazor SignalNotify
+# 🚀 Blazor WebPush
 
 A lightweight .NET demo showing how to send SignalR Live Updates and Web Push Notifications between different user roles (Employee & Manager).
 
