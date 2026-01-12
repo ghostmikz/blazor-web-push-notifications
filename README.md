@@ -19,7 +19,6 @@ A lightweight .NET demo showing how to send SignalR Live Updates and Web Push No
 - **Role-Based Push:** Notifications are routed specifically to the "Manager" role.
 - **Persistent Inbox:** Requests are logged on the server; Managers see missed requests upon logging back in.
 - **Clean Logout:** Automatically unsubscribes the browser and server-side store to prevent orphaned notifications.
-- **Modern UI:** Uses Bootstrap alerts and floating Toasts for a smooth user experience.
 
 ## 🛠️ Tech Stack
 - **Blazor WebAssembly** (Frontend)
