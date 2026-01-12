@@ -14,7 +14,6 @@ public static class UserService
         new UserProfile { Username = "manager", Role = "Manager" },
         new UserProfile { Username = "worker1", Role = "Employee" }
     };
-
     public static UserProfile? Authenticate(string username, string password)
     {
         // For testing, password is just 'password'

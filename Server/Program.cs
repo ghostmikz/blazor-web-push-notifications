@@ -1,33 +1,41 @@
 using Lib.Net.Http.WebPush;
-using Server.Hubs;
-using Server.Services;
-using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Add Controllers
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
 
-// 1. Register Web Push Service
+// 2. Configure PushServiceClient (Optimized & Secure)
 builder.Services.AddHttpClient<PushServiceClient>();
 builder.Services.AddSingleton<PushServiceClient>(sp => 
 {
+    var config = sp.GetRequiredService<IConfiguration>();
     var httpClient = sp.GetRequiredService<HttpClient>();
-    var client = new PushServiceClient(httpClient);
     
-    client.DefaultAuthentication = new Lib.Net.Http.WebPush.Authentication.VapidAuthentication(
-        "BKMxMXsdv11hILIHp31vatUVgIKu_Pl57-nNnkHii8I1hPcC0dph7UyPeNEqRddCD9cbFpqpMxQLK4GGwRmT-nw", 
-        "CwYDxVev4qZIbtdC54vi_LDH4QJLCUHuNvjUvs6Ny_o")
+    // Pulls from User Secrets locally, or appsettings.json
+    var publicKey = config["Vapid:PublicKey"];
+    var privateKey = config["Vapid:PrivateKey"];
+    var subject = config["Vapid:Subject"] ?? "mailto:admin@example.com";
+
+    if (string.IsNullOrEmpty(publicKey) || string.IsNullOrEmpty(privateKey))
     {
-        Subject = "mailto:admin@example.com"
+        // This helps you debug if your secrets aren't loaded correctly
+        throw new System.Exception("VAPID keys are missing! Run 'dotnet user-secrets set' to add them.");
+    }
+
+    var client = new PushServiceClient(httpClient);
+    client.DefaultAuthentication = new Lib.Net.Http.WebPush.Authentication.VapidAuthentication(publicKey, privateKey)
+    {
+        Subject = subject
     };
     return client;
 });
 
-// 2. Add a Silent Heartbeat to prevent the 1-minute delay
-// This replaces the CounterWorker but sends NO data to the UI
-builder.Services.AddHostedService<HeartbeatWorker>();
-
+// 3. Configure CORS
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowClient", policy => {
         policy.WithOrigins("http://localhost:5184", "http://127.0.0.1:5184") 
@@ -39,24 +47,10 @@ builder.Services.AddCors(options => {
 
 var app = builder.Build();
 
+// 4. Middleware Pipeline
 app.UseRouting();
 app.UseCors("AllowClient"); 
 
 app.MapControllers();
-app.MapHub<CounterHub>("/counterhub");
 
 app.Run();
-
-// --- SILENT WORKER DEFINITION ---
-public class HeartbeatWorker(IHubContext<CounterHub> hubContext) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            // Just keeps the pipe warm, sends no visible count
-            await hubContext.Clients.All.SendAsync("Ping", stoppingToken);
-            await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
-        }
-    }
-}
