@@ -1,34 +1,44 @@
 @page "/login"
+@using ServerCounterApp.Client.Services
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject IJSRuntime JS
+@inject PushNotificationService PushService
 
-<div class="container d-flex justify-content-center align-items-center" style="height: 70vh;">
-    <div class="card shadow p-4" style="width: 100%; max-width: 400px;">
-        <h3 class="text-center mb-4">Staff Login</h3>
-        
-        <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input @bind="model.Username" class="form-control" placeholder="Manager or worker" />
+@* Use the modern-card class we defined in app.css earlier *@
+<div class="modern-card">
+    <h3 class="text-center mb-4">Staff Login</h3>
+    
+    <div class="mb-3">
+        <label class="form-label text-muted">Username</label>
+        <input @bind="model.Username" class="form-control" placeholder="manager or worker" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-muted">Password</label>
+        <input @bind="model.Password" type="password" class="form-control" placeholder="password" />
+    </div>
+
+    @if (error)
+    {
+        <div class="alert alert-danger py-2 text-center" style="font-size: 0.9rem;">
+            Invalid username or password
         </div>
+    }
 
-        <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input @bind="model.Password" type="password" class="form-control" placeholder="password" />
-        </div>
-
-        @if (error)
+    <button class="btn btn-primary w-100" @onclick="DoLogin" disabled="@isProcessing">
+        @if (isProcessing)
         {
-            <div class="alert alert-danger py-2">Invalid username or password</div>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span> Verifying...</span>
         }
+        else
+        {
+            <span>Login</span>
+        }
+    </button>
 
-        <button class="btn btn-primary w-100" @onclick="DoLogin" disabled="@isProcessing">
-            @(isProcessing ? "Verifying..." : "Login")
-        </button>
-
-        <div class="mt-3 text-center text-muted" style="font-size: 0.8rem;">
-            Try: <b>Manager</b> / <b>password</b>
-        </div>
+    <div class="mt-4 text-center text-muted" style="font-size: 0.8rem;">
+        Try: <span class="badge bg-light text-dark">manager</span> / <span class="badge bg-light text-dark">password</span>
     </div>
 </div>
 
@@ -53,19 +63,25 @@
 
                 if (user != null)
                 {
-                    // 2. Request Notification Permission
-                    var permission = await JS.InvokeAsync<string>("Notification.requestPermission");
-
-                    if (permission == "granted")
+                    // 2. Request Subscription using your Professional Service
+                    // This pulls the Public Key from appsettings.json automatically
+                    try 
                     {
-                        // 3. Get Browser Push Token
-                        var sub = await JS.InvokeAsync<object>("blazorPushNotifications.requestSubscription");
-
-                        // 4. Register subscription on server
-                        await Http.PostAsJsonAsync($"api/notifications/subscribe/{user.Username}/{user.Role}", sub);
+                        var sub = await PushService.SubscribeUserAsync();
+                        
+                        if (sub != null)
+                        {
+                            // 3. Register subscription on server linked to this specific user
+                            await Http.PostAsJsonAsync($"api/notifications/subscribe/{user.Username}/{user.Role}", sub);
+                        }
+                    }
+                    catch (Exception pushEx)
+                    {
+                        // Log but don't stop login if they click "Block" or have an old browser
+                        Console.WriteLine($"Push Registration Skipped: {pushEx.Message}");
                     }
 
-                    // 5. Redirect based on role
+                    // 4. Redirect based on role
                     if (user.Role == "Manager")
                         Nav.NavigateTo("/manager-dashboard");
                     else
@@ -88,7 +104,6 @@
         }
     }
 
-    // Class definitions included here to prevent "Type not found" errors
     public class LoginRequest 
     { 
         public string Username { get; set; } = ""; 
